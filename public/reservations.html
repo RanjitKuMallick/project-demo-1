@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>BitCrave | Reservations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+      }
+    }
+    .bg-glass {
+      background: rgba(34, 7, 7, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .hover-scale:hover {
+      transform: scale(1.05);
+      transition: transform 0.3s ease;
+    }
+
+    .btn-glow:hover {
+      box-shadow: 0 0 10px rgba(255, 193, 7, 0.6), 0 0 20px rgba(255, 193, 7, 0.4);
+    }
+
+    footer {
+      animation: fadeIn 1s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+      body {
+      font-family: 'Roboto', sans-serif;
+      background: url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=1950&q=80') no-repeat center center/cover;
+      color: rgb(63, 13, 13);
+      margin: 0;
+    }
+    .overlay {
+      background: rgba(60, 15, 15, 0.7);
+      min-height: 100vh;
+      padding: 6rem 2rem 4rem;
+    }
+    h1, label {
+      font-family: 'Playfair Display', serif;
+    }
+    .reservation-form {
+      max-width: 600px;
+      margin: auto;
+      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.1);
+      padding: 3rem;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    input, select {
+      border-radius: 10px;
+    }
+    button {
+      background: linear-gradient(to right, #FF6F61, #FFB347);
+      border: none;
+      color: white;
+      padding: 0.7rem 2rem;
+      font-weight: bold;
+      border-radius: 10px;
+    }
+    footer {
+      text-align: center;
+      color: #ccc;
+      padding: 2rem 0;
+    }
+  #time + div {
+    font-size: 0.875rem;
+    color: #6b7280; /* Tailwind text-gray-500 */
+    font-style: italic;
+  }
+  </style>
+</head>
+<body class="bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 transition duration-300">
+<h3 id="userGreeting" style="text-align:center; margin-top:10px;"></h3>
+
+<!-- Navbar -->
+<nav class="bg-gray-900 text-white sticky top-0 z-50 shadow">
+  <div class="max-w-7xl mx-auto flex justify-between items-center p-4">
+    <a class="text-xl font-bold" href="index.html">🍽️ BitCrave</a>
+    <div class="space-x-4 hidden md:flex">
+      <a href="index.html" class="hover:text-yellow-400">Home</a>
+      <a href="menu.html" class="hover:text-yellow-400">Menu</a>
+      <a href="reservations.html" class="text-yellow-400 font-semibold">Reservations</a>
+      <a href="about.html" class="hover:text-yellow-400">About</a>
+      <a href="gallery.html" class="hover:text-yellow-400">Gallery</a>
+      <a href="contact.html" class="hover:text-yellow-400">Contact</a>
+      <button onclick="logoutUser()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Booking Form -->
+<section class="w-full p-6 mt-10">
+  <h2 class="text-4xl font-bold text-center mb-8">Reserve Your Table</h2>
+  <form id="reservationForm" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+    <input type="text" id="name" required placeholder="Full Name" class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+    <input type="tel" id="phone" required pattern="[0-9]{10}" placeholder="Phone Number" class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+    <input type="email" id="email" required placeholder="Email Address" class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+    <input type="date" id="date" required class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+    
+    <select id="time" required class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+    <option value="" disabled selected>Select Time Slot</option>
+    <option value="17:00">5:00 PM</option>
+    <option value="18:00">6:00 PM</option>
+    </select>
+    <select id="tableNumber" required class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+  <option value="" disabled selected>Select Table</option>
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+  <option>4</option>
+  <option>5</option>
+  <option>6</option>
+  <option>7</option>
+  <option>8</option>
+  <option>9</option>
+  <option>10</option>
+</select>
+
+    <select id="guests" required class="px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600">
+      <option value="" disabled selected>No. of Guests</option>
+      <option>1</option>
+      <option>2</option>
+      <option>3-4</option>
+      <option>5-7</option>
+      <option>8+</option>
+    </select>
+    <textarea id="requests" rows="3" class="md:col-span-2 px-4 py-3 rounded-md bg-white dark:bg-gray-800 border dark:border-gray-600" placeholder="Special Requests"></textarea>
+    <button type="submit" class="md:col-span-2 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-md transition duration-200">Book Now</button>
+  </form>
+  <!-- QR Code Section -->
+<section class="text-center mt-12" align="center">
+  <h3 class="text-2xl font-semibold mb-4">📱 Scan to View Our Menu</h3>
+  <p class="text-gray-400 mb-4">Scan this QR code on your phone to browse our menu and order directly.</p>
+  <div id="qrcode" class="inline-block bg-white p-4 rounded shadow-lg"></div>
+  <p id="qr-link-text" class="mt-2 text-gray-500 text-sm"></p>
+</section>
+
+</section>
+
+
+<!-- WhatsApp Button -->
+<a href="https://wa.me/919999999999" target="_blank" class="fixed bottom-6 right-6">
+  <img src="images/whatsapp-icon.png" alt="Chat" class="w-16 h-16 rounded-full shadow-lg hover:scale-105 transition duration-300">
+</a>
+
+<!-- Footer -->
+<footer class="text-center mt-10 py-6 bg-gray-900 text-gray-300">
+  © 2025 BitCrave Restaurant | All Rights Reserved
+</footer>
+<!-- Scripts -->
+<script>
+function logoutUser() {
+  sessionStorage.removeItem("bitcrave-user");
+  window.location.href = "login.html";
+}
+const user = JSON.parse(sessionStorage.getItem("bitcrave-user"));
+if (!user) {
+  alert("Please login to make a reservation.");
+  window.location.href = "login.html";
+} else {
+  document.getElementById("userGreeting").textContent = `Welcome, ${user.name}`;
+  document.getElementById("name").value = user.name || "";
+  document.getElementById("email").value = user.email || "";
+}
+
+document.getElementById("reservationForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
+  const tableNumber = document.getElementById("tableNumber").value;
+
+  const hourSlot = time.slice(0, 2); // e.g. "18" from "18:30"
+  const allReservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
+
+  // Count how many tables are already booked for this hour slot (not paid)
+  const bookingsInSlot = allReservations.filter(r =>
+    r.date === date && r.time.slice(0, 2) === hourSlot && r.status !== "Paid"
+  );
+
+  if (bookingsInSlot.length >= 3) {
+    alert("❌ Sorry, all tables are booked for this hour. Please choose another time.");
+    return;
+  }
+
+  // Prevent booking same table twice in this slot
+  const sameTableBooked = bookingsInSlot.some(r => r.tableNumber === tableNumber);
+  if (sameTableBooked) {
+    alert("❌ This table is already booked in the selected slot. Try a different one.");
+    return;
+  }
+
+  const reservation = {
+    name: document.getElementById("name").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    date: date,
+    time: time,
+    guests: document.getElementById("guests").value,
+    tableNumber: tableNumber,
+    requests: document.getElementById("requests").value.trim(),
+    status: "Pending"
+  };
+
+  allReservations.push(reservation);
+  localStorage.setItem("bitcrave-reservations", JSON.stringify(allReservations));
+
+  alert("✅ Reservation successful! We'll confirm shortly.");
+  this.reset();
+});
+</script>
+
+<!-- QR Code Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+  // 👉 Change this to your live link if deploying to Netlify/GitHub Pages
+  const menuUrl = "http://localhost:5502/public/menu.html"; // 👈 LOCAL path
+
+  // Generate QR code
+  new QRCode(document.getElementById("qrcode"), {
+    text: menuUrl,
+    width: 200,
+    height: 200,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  // Show the link below QR
+  document.getElementById("qr-link-text").textContent = menuUrl;
+</script>
+<script>
+const timeSlotDropdown = document.getElementById("time");
+const dateInput = document.getElementById("date");
+
+const TIME_SLOTS = [
+  "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"
+];
+
+function refreshTimeSlots() {
+  const selectedDate = dateInput.value;
+  if (!selectedDate) return;
+
+  const allReservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
+  timeSlotDropdown.innerHTML = '<option value="" disabled selected>Select Time Slot</option>';
+
+  TIME_SLOTS.forEach(slot => {
+    const count = allReservations.filter(r =>
+      r.date === selectedDate &&
+      r.time.startsWith(slot) &&
+      r.status !== "Paid"
+    ).length;
+
+    const isFull = count >= 3;
+    const displayText = `${slot} - ${isFull ? "Full" : "Available"}`;
+    
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = displayText;
+    option.disabled = isFull;
+    timeSlotDropdown.appendChild(option);
+  });
+}
+
+dateInput.addEventListener("change", refreshTimeSlots);
+
+// Initial call if date is pre-filled
+if (dateInput.value) refreshTimeSlots();
+</script>
+
+</body>
+</html>
