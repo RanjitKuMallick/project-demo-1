@@ -1,3 +1,4 @@
+<!-- reservation.html - Admin Panel: Assign Table Number -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,24 +37,32 @@
           <th>Guests</th>
           <th>Contact</th>
           <th>Status</th>
+          <th>Table #</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody id="reservationTableBody">
-        <!-- Dynamic content -->
+        <!-- Filled dynamically -->
       </tbody>
     </table>
   </div>
 
-  <!-- JS Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-
   <script>
-    emailjs.init("ci-JHDWo1WGRSl8OP"); // Your actual public key
+    emailjs.init("ci-JHDWo1WGRSl8OP");
+
+    let reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
+
+    function getAvailableTableNumbers() {
+      const usedTables = reservations
+        .filter(r => r.status === "Confirmed" && r.tableNumber)
+        .map(r => r.tableNumber);
+      const allTables = Array.from({ length: 10 }, (_, i) => i + 1); // 1 to 10
+      return allTables.filter(t => !usedTables.includes(t));
+    }
 
     function loadReservations() {
-      const reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
       const tbody = document.getElementById("reservationTableBody");
       tbody.innerHTML = "";
 
@@ -61,47 +70,63 @@
         const badgeClass = r.status === "Confirmed" ? "success"
                           : r.status === "Cancelled" ? "danger"
                           : "warning";
-
         const row = document.createElement("tr");
+
         row.innerHTML = `
           <td>${r.name}</td>
           <td>${r.date}</td>
           <td>${r.time}</td>
           <td>${r.guests}</td>
-          <td>${r.email || "No email"}<br><small>${r.phone || "No phone"}</small></td>
+          <td>${r.email}<br><small>${r.phone}</small></td>
           <td><span class="badge bg-${badgeClass}">${r.status}</span></td>
+          <td>${r.tableNumber || "-"}</td>
           <td>
-            ${r.status !== "Confirmed" ? `<button class="btn btn-success btn-sm" onclick="updateStatus(${index}, 'Confirmed')">Confirm</button>` : ""}
-            ${r.status !== "Cancelled" ? `<button class="btn btn-danger btn-sm" onclick="updateStatus(${index}, 'Cancelled')">Cancel</button>` : ""}
+            ${r.status === "Pending" ? `
+              <select class="form-select form-select-sm mb-1" id="tableSelect-${index}">
+                <option value="">Assign Table</option>
+                ${getAvailableTableNumbers().map(num => `<option value="${num}">${num}</option>`).join("")}
+              </select>
+              <button class="btn btn-success btn-sm" onclick="confirmBooking(${index})">Confirm</button>
+              <button class="btn btn-danger btn-sm mt-1" onclick="cancelBooking(${index})">Cancel</button>
+            ` : ""}
           </td>
         `;
         tbody.appendChild(row);
       });
     }
 
-    function updateStatus(index, newStatus) {
-      const reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
-      const r = reservations[index];
-      r.status = newStatus;
+    function confirmBooking(index) {
+      const tableNo = document.getElementById(`tableSelect-${index}`).value;
+      if (!tableNo) {
+        alert("Please assign a table number first.");
+        return;
+      }
+
+      reservations[index].status = "Confirmed";
+      reservations[index].tableNumber = parseInt(tableNo);
       localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
       loadReservations();
 
-      // ✅ Send Email if Confirmed
-      if (newStatus === "Confirmed" && r.email) {
-        emailjs.send("service_xj1e9a6", "template_h9zgibs", {
-          to_name: r.name,
-          to_email: r.email,
-          date: r.date,
-          time: r.time,
-          guests: r.guests
-        }).then(
-          () => console.log("✅ Confirmation email sent to " + r.email),
-          (err) => console.error("❌ Email send failed:", err)
-        );
-      }
+      const r = reservations[index];
+      emailjs.send("service_xj1e9a6", "template_h9zgibs", {
+        to_name: r.name,
+        to_email: r.email,
+        date: r.date,
+        time: r.time,
+        guests: r.guests,
+        table: tableNo
+      }).then(() => {
+        console.log("Email sent.");
+      }).catch(err => console.error("Email failed", err));
     }
 
-    // Dark Mode Toggle
+    function cancelBooking(index) {
+      reservations[index].status = "Cancelled";
+      localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+      loadReservations();
+    }
+
+    // Dark mode toggle
     if (localStorage.getItem("bitcrave-theme") === "dark") {
       document.body.classList.add("dark-mode");
       document.querySelectorAll('.table').forEach(el => el.classList.add('dark-mode'));
@@ -110,25 +135,9 @@
     document.getElementById("darkModeToggle").addEventListener("click", () => {
       document.body.classList.toggle("dark-mode");
       document.querySelectorAll('.table').forEach(el => el.classList.toggle('dark-mode'));
-      const theme = document.body.classList.contains("dark-mode") ? "dark" : "light";
-      localStorage.setItem("bitcrave-theme", theme);
+      localStorage.setItem("bitcrave-theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
     });
-    function confirmBooking(index) {
-  const reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
-  reservations[index].status = "Confirmed";
-  localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
-  alert("Booking confirmed!");
-  location.reload();
-}
-    function cancelBooking(index) {
-      const reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
-      reservations[index].status = "Cancelled";
-      localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
-      alert("Booking cancelled!");
-      location.reload();
-    }
 
-    // Load on page ready
     window.onload = loadReservations;
   </script>
 </body>

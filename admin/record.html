@@ -21,6 +21,7 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4">
     <a class="navbar-brand" href="#">BitCrave Admin</a>
     <div class="ms-auto d-flex gap-2">
+      <input type="date" id="dateFilter" class="form-control form-control-sm" placeholder="Filter by date (optional)" />
       <button id="darkModeToggle" class="btn btn-outline-light me-2" title="Toggle Dark Mode">🌙</button>
       <button onclick="logout()" class="btn btn-outline-danger">Logout</button>
     </div>
@@ -53,12 +54,12 @@
           <th>Date</th>
           <th>Time</th>
           <th>Guests</th>
+          <th>Table No</th>
           <th>Contact</th>
-          <th>Status</th>
           <th>Order</th>
           <th>Total</th>
+          <th>Status</th>
           <th>Payment</th>
-          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="adminTableBody"></tbody>
@@ -67,12 +68,21 @@
 
   <script>
     let allBookings = [];
+    let currentStatusFilter = "All";
     let menu = JSON.parse(localStorage.getItem("bitcrave-menu")) || [];
 
     function loadData() {
       allBookings = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
-      updateSummaryCards();
-      renderTable("All");
+      updateSummaryCards(allBookings);
+      renderTable(allBookings);
+    }
+
+    function filterStatus(status) {
+      currentStatusFilter = status;
+      document.querySelectorAll("#statusTabs .nav-link").forEach(btn => btn.classList.remove("active"));
+      const btn = [...document.querySelectorAll("#statusTabs .nav-link")].find(b => b.textContent === status);
+      if (btn) btn.classList.add("active");
+      renderTable(allBookings);
     }
 
     function calculateTotal(order = []) {
@@ -82,15 +92,14 @@
       }, 0);
     }
 
-    function updateSummaryCards() {
-      const total = allBookings.length;
-      const confirmed = allBookings.filter(b => b.status === "Confirmed").length;
-      const pending = allBookings.filter(b => b.status === "Pending").length;
-      const paid = allBookings.filter(b => b.paymentStatus === "Paid").length;
-      const revenue = allBookings.reduce((sum, b) => b.paymentStatus === "Paid" ? sum + calculateTotal(b.order) : sum, 0);
+    function updateSummaryCards(bookings) {
+      const confirmed = bookings.filter(b => b.status === "Confirmed").length;
+      const pending = bookings.filter(b => b.status === "Pending").length;
+      const paid = bookings.filter(b => b.paymentStatus === "Paid").length;
+      const revenue = bookings.reduce((sum, b) => b.paymentStatus === "Paid" ? sum + calculateTotal(b.order) : sum, 0);
 
       const cardData = [
-        { label: "Total Bookings", value: total, class: "primary" },
+        { label: "Total Bookings", value: bookings.length, class: "primary" },
         { label: "Confirmed", value: confirmed, class: "success" },
         { label: "Pending", value: pending, class: "warning" },
         { label: "Paid Orders", value: paid, class: "info" },
@@ -107,57 +116,51 @@
         </div>`).join("");
     }
 
-    function renderTable(filter = "All") {
+    function renderTable(bookings) {
+      const dateValue = document.getElementById("dateFilter").value;
+      const dateFiltered = dateValue ? bookings.filter(b => b.date === dateValue) : bookings;
+
+      const filtered = dateFiltered.filter(b => {
+        const payStatus = b.paymentStatus || "Unpaid";
+        if (currentStatusFilter === "All") return true;
+        if (currentStatusFilter === "Unpaid") return payStatus !== "Paid";
+        if (currentStatusFilter === "Paid") return payStatus === "Paid";
+        return b.status === currentStatusFilter;
+      });
+
       const tbody = document.getElementById("adminTableBody");
       tbody.innerHTML = "";
 
-      allBookings.forEach((b, i) => {
+      filtered.forEach((b, i) => {
         const total = calculateTotal(b.order);
         const paymentStatus = b.paymentStatus || "Pending";
-        const match = filter === "All" ||
-                      (filter === "Unpaid" && paymentStatus !== "Paid") ||
-                      (filter === "Paid" && paymentStatus === "Paid") ||
-                      (b.status === filter);
-        if (!match) return;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${b.name}</td>
-          <td>${b.date}</td>
-          <td>${b.time}</td>
-          <td>${b.guests}</td>
-          <td>${b.email}<br><small>${b.phone}</small></td>
-          <td><span class="badge bg-${b.status === 'Confirmed' ? 'success' : b.status === 'Rejected' ? 'danger' : 'warning'}">${b.status}</span></td>
-          <td>${(b.order || []).join(", ")}</td>
-          <td>₹${total}</td>
-          <td><span class="badge bg-${paymentStatus === 'Paid' ? 'success' : 'warning'}">${paymentStatus}</span></td>
-          <td>
-            ${b.status === 'Pending' ? `
-              <button class="btn btn-sm btn-success mb-1" onclick="updateStatus(${i}, 'Confirmed')">Confirm</button>
-              <button class="btn btn-sm btn-danger" onclick="updateStatus(${i}, 'Rejected')">Reject</button>` : '-'}
-          </td>
-        `;
-        tbody.appendChild(row);
+        tbody.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${b.name}</td>
+            <td>${b.date}</td>
+            <td>${b.time}</td>
+            <td>${b.guests}</td>
+            <td>${b.tableNo || '-'}</td>
+            <td>${b.email}<br><small>${b.phone}</small></td>
+            <td>${(b.order || []).join(", ")}</td>
+            <td>₹${total}</td>
+            <td><span class="badge bg-${b.status === 'Confirmed' ? 'success' : b.status === 'Rejected' ? 'danger' : 'warning'}">${b.status}</span></td>
+            <td><span class="badge bg-${paymentStatus === 'Paid' ? 'success' : 'warning'}">${paymentStatus}</span></td>
+          </tr>`;
       });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center">No bookings found.</td></tr>`;
+      }
     }
 
-    function updateStatus(index, newStatus) {
-      allBookings[index].status = newStatus;
-      localStorage.setItem("bitcrave-reservations", JSON.stringify(allBookings));
+    function checkLogin() {
       loadData();
     }
 
-    function filterStatus(status) {
-      document.querySelectorAll("#statusTabs .nav-link").forEach(btn => btn.classList.remove("active"));
-      const btn = [...document.querySelectorAll("#statusTabs .nav-link")].find(b => b.textContent === status || (status === "All" && b.textContent === "All"));
-      if (btn) btn.classList.add("active");
-      renderTable(status);
-    }
-
-    if (localStorage.getItem("bitcrave-theme") === "dark") {
-      document.body.classList.add("dark-mode");
-      document.querySelectorAll(".table, .card, .navbar").forEach(el => el.classList.add("dark-mode"));
+    function logout() {
+      alert("Logged out (mock)");
     }
 
     document.getElementById("darkModeToggle").addEventListener("click", () => {
@@ -166,15 +169,7 @@
       localStorage.setItem("bitcrave-theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
     });
 
-    function checkLogin() {
-      // Optional: add login check logic here
-      loadData();
-    }
-
-    function logout() {
-      // Optional: add logout logic here
-      alert("Logged out (mock)");
-    }
+    document.getElementById("dateFilter").addEventListener("change", () => renderTable(allBookings));
   </script>
 </body>
 </html>

@@ -3,165 +3,243 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BitCrave | Staff Orders</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Staff Orders</title>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <style>
-    body.dark-mode {
-      background-color: #121212;
-      color: #f0f0f0;
-    }
-    .table.dark-mode {
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
-    .navbar.dark-mode {
-      background-color: #1e1e1e !important;
-    }
-    .badge-warning {
-      background-color: #f0ad4e;
-    }
-  </style>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
-<body>
-
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary px-4">
-    <a class="navbar-brand" href="#">🍽️ BitCrave - Staff Panel</a>
-    <div class="ms-auto">
-      <button class="btn btn-light btn-sm" id="darkModeToggle">🌙</button>
-    </div>
-  </nav>
-
-  <!-- Main Content -->
-  <div class="container mt-4">
-    <h3 class="text-center mb-4">Confirmed Orders</h3>
-
-    <table class="table table-bordered table-striped" id="orderTable">
+<body class="bg-light">
+  <div class="container mt-5">
+    <h2 class="mb-4">Confirmed Table Reservations & Orders</h2>
+    <table class="table table-bordered">
       <thead class="table-dark">
         <tr>
-          <th>#</th>
+          <th>Table No</th>
           <th>Name</th>
           <th>Date</th>
           <th>Time</th>
           <th>Guests</th>
-          <th>Contact</th>
-          <th>Order Details</th>
-          <th>Total</th>
-          <th>Payment Status</th>
-          <th>Action</th>
+          <th>Pre-Booked Menu</th>
+          <th>Actions</th>
         </tr>
       </thead>
-      <tbody id="staffOrderTableBody">
-        <!-- JS will populate this -->
-      </tbody>
+      <tbody id="staffOrdersTableBody"></tbody>
     </table>
   </div>
 
+  <!-- Edit Order Modal -->
+  <div class="modal fade" id="editOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Order</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <table class="table table-sm">
+            <thead><tr><th>Dish</th><th>Quantity</th><th>Remove</th></tr></thead>
+            <tbody id="editOrderTableBody"></tbody>
+          </table>
+          <div class="mb-3">
+            <label>Add More Items</label>
+            <select class="form-select" id="addMenuItem"></select>
+            <button class="btn btn-success mt-2" onclick="addMenuItemToOrder()">Add Dish</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="saveOrderChanges()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bill Modal -->
+<!-- Bill Modal -->
+<div class="modal fade" id="billModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bill Summary</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ul id="billDetails" class="list-group mb-3"></ul>
+        <h5>Total: ₹<span id="totalAmount"></span></h5>
+        <h6>Scan to Pay:</h6>
+<img src="your-qr-code-image-url.png" class="img-fluid border" alt="Scan QR to Pay" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-success" onclick="startRazorpay()">Pay with Razorpay</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
-    const menu = JSON.parse(localStorage.getItem("bitcrave-menu")) || [];
-
-    function calculateTotal(order = []) {
-      return order.reduce((sum, itemName) => {
-        const menuItem = menu.find(m => m.name === itemName);
-        return sum + (menuItem ? Number(menuItem.price) : 0);
-      }, 0);
-    }
+    let menu = JSON.parse(localStorage.getItem("bitcrave-menu")) || [];
+    let currentEditIndex = null;
+    let billIndex = null;
 
     function loadStaffOrders() {
-      const tbody = document.getElementById("staffOrderTableBody");
+      const tbody = document.getElementById("staffOrdersTableBody");
       tbody.innerHTML = "";
+      reservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
 
-      reservations.forEach((res, index) => {
-        if (res.status === "Confirmed" && res.order && res.order.length) {
-          const orderItems = res.order.map(item => item).join(", ");
-          const total = calculateTotal(res.order);
-          const paymentStatus = res.paymentStatus || "Pending";
-          const badgeClass = paymentStatus === "Paid" ? "success" : "warning";
-
+      reservations.forEach((r, index) => {
+        if (r.status === "Confirmed") {
           const row = document.createElement("tr");
           row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${res.name}</td>
-            <td>${res.date}</td>
-            <td>${res.time}</td>
-            <td>${res.guests}</td>
-            <td>${res.email}<br><small>${res.phone}</small></td>
-            <td>${orderItems}</td>
-            <td>₹${total}</td>
-            <td><span class="badge bg-${badgeClass}">${paymentStatus}</span></td>
+            <td>${r.tableNo || "-"}</td>
+            <td>${r.name}</td>
+            <td>${r.date}</td>
+            <td>${r.time}</td>
+            <td>${r.guests}</td>
+            <td><ul class="mb-0">${(r.order || []).map(i => `<li>${i.name} x ${i.quantity}</li>`).join("") || "<em>No items</em>"}</ul></td>
             <td>
-              ${paymentStatus !== "Paid" ? `<button class="btn btn-sm btn-success" onclick="startPayment(${index})">Generate Bill & Pay</button>` : "-"}
-            </td>
-          `;
+              <button class="btn btn-sm btn-primary mb-1" onclick="editOrder(${index})">Edit</button>
+              <button class="btn btn-sm btn-success" onclick="generateBill(${index})">Generate Bill</button>
+            </td>`;
           tbody.appendChild(row);
         }
       });
+    }
 
-      if (tbody.innerHTML.trim() === "") {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center">No confirmed orders with items.</td></tr>`;
+    function editOrder(index) {
+      currentEditIndex = index;
+      const reservation = reservations[index];
+      const tbody = document.getElementById("editOrderTableBody");
+      tbody.innerHTML = "";
+
+      (reservation.order || []).forEach((item, i) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${item.name}</td>
+          <td><input type="number" min="1" value="${item.quantity}" onchange="updateQty(${i}, this.value)" class="form-control form-control-sm" /></td>
+          <td><button class="btn btn-danger btn-sm" onclick="removeItem(${i})">Remove</button></td>`;
+        tbody.appendChild(row);
+      });
+
+      const dishSelect = document.getElementById("addMenuItem");
+      dishSelect.innerHTML = '<option value="">Select Dish</option>' +
+        menu.map(item => `<option value="${item.name}">${item.name}</option>`).join("");
+
+      new bootstrap.Modal(document.getElementById("editOrderModal")).show();
+    }
+
+    function updateQty(index, qty) {
+      if (currentEditIndex !== null) {
+        reservations[currentEditIndex].order[index].quantity = parseInt(qty) || 1;
+        localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+        editOrder(currentEditIndex); // Refresh modal
       }
     }
 
-    function startPayment(index) {
-      const booking = reservations[index];
-      const total = calculateTotal(booking.order);
-
-      const options = {
-        key: "rzp_test_YourTestKeyHere",
-        amount: total * 100,
-        currency: "INR",
-        name: "BitCrave",
-        description: "Restaurant Order Payment",
-        handler: function (response) {
-          // Update payment status
-          reservations[index].paymentStatus = "Paid";
-          localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
-
-          // Store in bitcrave-payments
-          const payments = JSON.parse(localStorage.getItem("bitcrave-payments")) || [];
-          payments.push({
-            paymentId: response.razorpay_payment_id,
-            email: booking.email,
-            amount: total,
-            date: booking.date,
-            time: booking.time,
-            bookingId: index + 1,
-            createdAt: new Date().toISOString()
-          });
-          localStorage.setItem("bitcrave-payments", JSON.stringify(payments));
-
-          loadStaffOrders();
-        },
-        prefill: {
-          name: booking.name,
-          email: booking.email,
-          contact: booking.phone
-        },
-        theme: {
-          color: "#3399cc"
-        }
-      };
-      const rzp = new Razorpay(options);
-      rzp.open();
+    function removeItem(index) {
+      if (currentEditIndex !== null) {
+        reservations[currentEditIndex].order.splice(index, 1);
+        localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+        editOrder(currentEditIndex);
+      }
     }
 
-    // Dark Mode Setup
-    if (localStorage.getItem("bitcrave-theme") === "dark") {
-      document.body.classList.add("dark-mode");
-      document.querySelectorAll('.table, .navbar').forEach(el => el.classList.add('dark-mode'));
+    function addMenuItemToOrder() {
+      const selected = document.getElementById("addMenuItem").value;
+      if (!selected || currentEditIndex === null) return;
+
+      const order = reservations[currentEditIndex].order || [];
+      const existing = order.find(i => i.name === selected);
+
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        order.push({ name: selected, quantity: 1 });
+      }
+
+      reservations[currentEditIndex].order = order;
+      localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+      editOrder(currentEditIndex);
     }
 
-    document.getElementById("darkModeToggle").addEventListener("click", () => {
-      document.body.classList.toggle("dark-mode");
-      document.querySelectorAll('.table, .navbar').forEach(el => el.classList.toggle('dark-mode'));
-      const theme = document.body.classList.contains("dark-mode") ? "dark" : "light";
-      localStorage.setItem("bitcrave-theme", theme);
-    });
+    function saveOrderChanges() {
+      localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+      loadStaffOrders();
+      bootstrap.Modal.getInstance(document.getElementById("editOrderModal")).hide();
+    }
+
+    function generateBill(index) {
+      billIndex = index;
+      const order = reservations[index].order || [];
+      const billList = document.getElementById("billDetails");
+      billList.innerHTML = "";
+
+      let total = 0;
+      order.forEach(item => {
+        const price = menu.find(m => m.name === item.name)?.price || 100;
+        const amount = price * item.quantity;
+        total += amount;
+
+        const li = document.createElement("li");
+        li.className = "list-group-item d-flex justify-content-between align-items-center";
+        li.innerHTML = `${item.name} x ${item.quantity} <span>₹${amount}</span>`;
+        billList.appendChild(li);
+      });
+
+      document.getElementById("totalAmount").innerText = total;
+      document.getElementById("qrCode").src = `https://api.qrserver.com/v1/create-qr-code/?data=Pay%20INR%20${total}&size=150x150`;
+      // Show QR code image for payment
+      document.getElementById("qrCode").style.display = "block";
+      new bootstrap.Modal(document.getElementById("billModal")).show();
+    }
+
+    function markAsPaid() {
+      if (billIndex !== null) {
+        reservations[billIndex].paymentStatus = "Paid";
+        reservations[billIndex].tableNo = ""; // Free the table
+        localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+        loadStaffOrders();
+        bootstrap.Modal.getInstance(document.getElementById("billModal")).hide();
+        alert("Payment marked as complete. Table is now free.");
+      }
+    }
+
+    function startRazorpay() {
+  const reservation = reservations[billIndex];
+  const totalAmount = document.getElementById("totalAmount").innerText;
+
+  const options = {
+    key: "rzp_test_YourTestKeyHere", // ✅ replace with your Razorpay test key
+    amount: totalAmount * 100, // amount in paise
+    currency: "INR",
+    name: "BitCrave Restaurant",
+    description: `Payment for Table ${reservation.tableNo || ''}`,
+    handler: function (response) {
+      alert("Payment Successful. ID: " + response.razorpay_payment_id);
+      reservations[billIndex].paymentStatus = "Paid";
+      reservations[billIndex].tableNo = ""; // free the table
+      localStorage.setItem("bitcrave-reservations", JSON.stringify(reservations));
+      loadStaffOrders();
+      bootstrap.Modal.getInstance(document.getElementById("billModal")).hide();
+    },
+    prefill: {
+      name: reservation.name,
+      email: reservation.email,
+      contact: reservation.phone
+    },
+    theme: {
+      color: "#3399cc"
+    }
+  };
+
+  const rzp = new Razorpay(options);
+  rzp.open();
+}
 
     window.onload = loadStaffOrders;
   </script>
-
 </body>
 </html>

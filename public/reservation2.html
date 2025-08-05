@@ -129,3 +129,179 @@ if (!user) {
   document.getElementById("name").value = user.name || "";
   document.getElementById("email").value = user.email || "";
 }
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>BitCrave | Reservations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=1950&q=80') no-repeat center center/cover;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .overlay {
+      background: rgba(0, 0, 0, 0.6);
+      min-height: 100vh;
+      padding-top: 8rem;
+      padding-bottom: 4rem;
+    }
+
+    .reservation-form {
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</head>
+<body class="text-white">
+
+<!-- ✅ Fixed Navbar -->
+<nav class="fixed w-full z-50 top-0 bg-black/70 backdrop-blur shadow-lg border-b border-white/10">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+    <a href="index.html" class="text-2xl font-bold text-yellow-400">🍽 BitCrave</a>
+    <div class="space-x-6 hidden md:flex">
+      <a href="index.html" class="hover:text-yellow-400">Home</a>
+      <a href="menu.html" class="hover:text-yellow-400">Menu</a>
+      <a href="reservations.html" class="text-yellow-400 font-semibold">Reservations</a>
+      <a href="about.html" class="hover:text-yellow-400">About</a>
+      <a href="gallery.html" class="hover:text-yellow-400">Gallery</a>
+      <a href="contact.html" class="hover:text-yellow-400">Contact</a>
+      <button onclick="logoutUser()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ✅ Page Content -->
+<div class="overlay px-4">
+  <h2 class="text-4xl font-bold text-center mb-10">Reserve Your Table</h2>
+  <form id="reservationForm" class="reservation-form max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-black">
+    <input type="text" id="name" required placeholder="Full Name" class="px-4 py-3 rounded bg-white/80">
+    <input type="tel" id="phone" required pattern="[0-9]{10}" placeholder="Phone Number" class="px-4 py-3 rounded bg-white/80">
+    <input type="email" id="email" required placeholder="Email Address" class="px-4 py-3 rounded bg-white/80">
+    <input type="date" id="date" required class="px-4 py-3 rounded bg-white/80">
+
+    <select id="time" required class="px-4 py-3 rounded bg-white/80">
+      <option value="" disabled selected>Select Time Slot</option>
+    </select>
+
+    <select id="tableNumber" required class="px-4 py-3 rounded bg-white/80">
+      <option value="" disabled selected>Select Table</option>
+      <option>1</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option>
+      <option>7</option><option>8</option><option>9</option><option>10</option>
+    </select>
+
+    <select id="guests" required class="px-4 py-3 rounded bg-white/80">
+      <option value="" disabled selected>No. of Guests</option>
+      <option>1</option><option>2</option><option>3-4</option><option>5-7</option><option>8+</option>
+    </select>
+
+    <textarea id="requests" rows="3" class="md:col-span-2 px-4 py-3 rounded bg-white/80" placeholder="Special Requests"></textarea>
+    <button type="submit" class="md:col-span-2 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-md transition duration-200">Book Now</button>
+  </form>
+</div>
+
+<!-- ✅ Footer -->
+<footer class="text-center py-6 mt-10 bg-black/60 text-gray-300">
+  © 2025 BitCrave Restaurant | All Rights Reserved
+</footer>
+
+<!-- ✅ Script Section -->
+<script>
+function logoutUser() {
+  sessionStorage.removeItem("bitcrave-user");
+  window.location.href = "login.html";
+}
+
+const user = JSON.parse(sessionStorage.getItem("bitcrave-user"));
+if (!user) {
+  alert("Please login to make a reservation.");
+  window.location.href = "login.html";
+} else {
+  document.getElementById("name").value = user.name || "";
+  document.getElementById("email").value = user.email || "";
+}
+
+document.getElementById("reservationForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
+  const tableNumber = document.getElementById("tableNumber").value;
+  const hourSlot = time.slice(0, 2);
+  const allReservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
+
+  const bookingsInSlot = allReservations.filter(r =>
+    r.date === date && r.time.slice(0, 2) === hourSlot && r.status !== "Paid"
+  );
+
+  if (bookingsInSlot.length >= 3) {
+    alert("❌ Sorry, all tables are booked for this hour.");
+    return;
+  }
+
+  if (bookingsInSlot.some(r => r.tableNumber === tableNumber)) {
+    alert("❌ This table is already booked.");
+    return;
+  }
+
+  const reservation = {
+    name: document.getElementById("name").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    date: date,
+    time: time,
+    guests: document.getElementById("guests").value,
+    tableNumber: tableNumber,
+    requests: document.getElementById("requests").value.trim(),
+    status: "Pending"
+  };
+
+  allReservations.push(reservation);
+  localStorage.setItem("bitcrave-reservations", JSON.stringify(allReservations));
+
+  alert("✅ Reservation successful!");
+  this.reset();
+});
+</script>
+
+<script>
+const timeSlotDropdown = document.getElementById("time");
+const dateInput = document.getElementById("date");
+
+const TIME_SLOTS = ["12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
+
+function refreshTimeSlots() {
+  const selectedDate = dateInput.value;
+  if (!selectedDate) return;
+
+  const allReservations = JSON.parse(localStorage.getItem("bitcrave-reservations")) || [];
+  timeSlotDropdown.innerHTML = '<option value="" disabled selected>Select Time Slot</option>';
+
+  TIME_SLOTS.forEach(slot => {
+    const count = allReservations.filter(r =>
+      r.date === selectedDate &&
+      r.time.startsWith(slot) &&
+      r.status !== "Paid"
+    ).length;
+
+    const isFull = count >= 3;
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = `${slot} - ${isFull ? "Full" : "Available"}`;
+    option.disabled = isFull;
+    timeSlotDropdown.appendChild(option);
+  });
+}
+
+dateInput.addEventListener("change", refreshTimeSlots);
+</script>
+
+</body>
+</html>

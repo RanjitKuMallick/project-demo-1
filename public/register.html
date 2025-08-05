@@ -135,8 +135,8 @@
         const name = document.getElementById("name").value.trim();
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
-
-        if (!name || !email || !password) return alert("Please fill all fields");
+        const number = document.getElementById("number").value.trim();
+        if (!name || !email || !password || !number) return alert("Please fill all fields");
 
         const users = JSON.parse(localStorage.getItem("users")) || [];
         if (users.find(u => u.email === email)) {

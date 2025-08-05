@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bit Crave - Login</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
   <style>
     body {
@@ -18,7 +16,6 @@
       align-items: center;
       position: relative;
     }
-
     body::before {
       content: '';
       position: absolute;
@@ -27,7 +24,6 @@
       background: rgba(0, 0, 0, 0.4);
       z-index: 1;
     }
-
     .login-container {
       position: relative;
       z-index: 2;
@@ -37,39 +33,32 @@
       padding: 30px 40px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     }
-
     .login-header {
       text-align: center;
       margin-bottom: 25px;
     }
-
     .login-header h1 {
       font-family: 'Cormorant Garamond', serif;
       font-size: 2.5rem;
       color: #5d4037;
       margin-bottom: 10px;
     }
-
     .form-group {
       margin-bottom: 20px;
     }
-
     label {
       display: block;
       font-weight: 600;
       margin-bottom: 6px;
       font-size: 0.9rem;
     }
-
-    input[type="email"],
-    input[type="password"] {
+    input {
       width: 100%;
       padding: 12px 15px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 0.95rem;
     }
-
     .login-btn {
       width: 100%;
       padding: 14px;
@@ -81,17 +70,14 @@
       font-size: 1rem;
       cursor: pointer;
     }
-
     .login-btn:hover {
       background: #3e2723;
     }
-
     .register-link {
       text-align: center;
       margin-top: 20px;
       font-size: 0.9rem;
     }
-
     .register-link a {
       color: #8d6e63;
       text-decoration: none;
@@ -103,21 +89,28 @@
   <div class="login-container">
     <div class="login-header">
       <h1>Bit Crave</h1>
-      <p>User Login</p>
+      <p>User Login (Email or Phone)</p>
     </div>
 
     <form id="loginForm">
       <div class="form-group">
-        <label for="loginEmail">Email Address</label>
-        <input type="email" id="loginEmail" required placeholder="your@email.com" />
+        <label for="identifier">Email or Phone</label>
+        <input type="text" id="identifier" required placeholder="Email or 10-digit phone" />
       </div>
 
-      <div class="form-group">
-        <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" required placeholder="••••••••" />
+      <div class="form-group" id="passwordGroup">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" />
       </div>
 
-      <button type="submit" class="login-btn">Login</button>
+      <div class="form-group" id="otpSection" style="display:none;">
+        <label for="otpInput">Enter OTP</label>
+        <input type="text" id="otpInput" placeholder="6-digit OTP" />
+      </div>
+
+      <button type="submit" class="login-btn" id="loginBtn">Login with Password</button>
+      <button type="button" class="login-btn mt-3" id="getOtpBtn">Login with OTP</button>
+      <button type="submit" class="login-btn mt-3" id="submitOtpBtn" style="display:none;">Verify OTP</button>
 
       <div class="register-link">
         <p>Don't have an account? <a href="register.html">Register here</a></p>
@@ -126,30 +119,97 @@
   </div>
 
   <script>
-    document.getElementById("loginForm").addEventListener("submit", function (e) {
+    const loginForm = document.getElementById("loginForm");
+    const identifierInput = document.getElementById("identifier");
+    const passwordInput = document.getElementById("password");
+    const otpInput = document.getElementById("otpInput");
+    const otpSection = document.getElementById("otpSection");
+    const getOtpBtn = document.getElementById("getOtpBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const submitOtpBtn = document.getElementById("submitOtpBtn");
+
+    let generatedOtp = null;
+    let otpExpiry = null;
+    let currentPhone = null;
+
+    // Login with email or phone + password
+    loginForm.addEventListener("submit", function (e) {
       e.preventDefault();
-
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value.trim();
-
+      const id = identifierInput.value.trim();
+      const password = passwordInput.value.trim();
+      const inputOtp = otpInput.value.trim();
       const users = JSON.parse(localStorage.getItem("users")) || [];
-      const user = users.find(u => u.email === email && u.password === password);
+
+      if (otpSection.style.display === "block") {
+        // OTP Verification
+        const storedOtp = sessionStorage.getItem("bitcrave-otp");
+        const expiry = parseInt(sessionStorage.getItem("bitcrave-otp-expiry"));
+        if (!storedOtp || Date.now() > expiry) {
+          alert("❌ OTP expired. Please request a new one.");
+          location.reload();
+          return;
+        }
+        if (inputOtp !== storedOtp) {
+          alert("❌ Incorrect OTP.");
+          return;
+        }
+
+        const user = users.find(u => u.phone === currentPhone);
+        if (user) {
+          sessionStorage.setItem("bitcrave-user", JSON.stringify(user));
+          alert("✅ Logged in via OTP!");
+          window.location.href = "reservations.html";
+        } else {
+          alert("❌ Phone number not registered.");
+        }
+        return;
+      }
+
+      // Login with password
+      let user = null;
+      if (/^\d{10}$/.test(id)) {
+        user = users.find(u => u.phone === id && u.password === password);
+      } else {
+        user = users.find(u => u.email === id && u.password === password);
+      }
 
       if (user) {
         sessionStorage.setItem("bitcrave-user", JSON.stringify(user));
-        alert("Login successful!");
-        window.location.href = "reservations.html"; 
+        alert("✅ Login successful!");
+        window.location.href = "reservations.html";
       } else {
-        alert("Invalid email or password.");
+        alert("❌ Invalid credentials.");
       }
     });
 
-    // Redirect if already logged in
+    // OTP Login Trigger
+    getOtpBtn.addEventListener("click", () => {
+      const id = identifierInput.value.trim();
+      if (!/^\d{10}$/.test(id)) {
+        alert("❌ Please enter a valid 10-digit phone number.");
+        return;
+      }
+
+      // Generate OTP
+      generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      otpExpiry = Date.now() + 90000;
+      currentPhone = id;
+
+      sessionStorage.setItem("bitcrave-otp", generatedOtp);
+      sessionStorage.setItem("bitcrave-otp-expiry", otpExpiry);
+
+      alert(`📲 OTP sent! (Simulated OTP: ${generatedOtp})`);
+
+      otpSection.style.display = "block";
+      passwordInput.style.display = "none";
+      loginBtn.style.display = "none";
+      submitOtpBtn.style.display = "block";
+    });
+
+    // Auto redirect if already logged in
     if (sessionStorage.getItem("bitcrave-user")) {
       window.location.href = "reservations.html";
     }
-  
-</script>
-
+  </script>
 </body>
 </html>
